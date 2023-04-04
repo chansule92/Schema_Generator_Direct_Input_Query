@@ -150,8 +150,6 @@ class Exam(QWidget):
                                 "fields":""
                                 }
                         }
-            column_list=[]
-            comments_list=[]
             #쿼리결과를 DataFrame으로
             if database == 'mysql' or database == 'mariadb':
                 data=pd.read_sql_query(SQL,conn)
@@ -172,19 +170,18 @@ class Exam(QWidget):
                         column_type = 'num'
                 if null == len(data):
                     column_type = 'null'
-                column_desc = i
                 if column_type == 'num':
                     column_category = '분석지표'
                     column_statistics=["SUM("+i+")"]
-                    column_statistics_desc=["합계("+i+")"]
+                    filter_query = "SELECT 1 AS MINVALUE, 10000000 AS MAXVALUE"
                 elif column_type=="char_only":
                     column_category="고객번호"
                     column_statistics=["COUNT("+i+")"]
-                    column_statistics_desc=["건수("+i+")"]
+                    filter_query = "SELECT "+i+" FROM ("+SQL+") M GROUP BY "+ i
                 else:
                     column_category="분석관점"
                     column_statistics=["COUNT("+i+")"]
-                    column_statistics_desc=["건수("+i+")"]
+                    filter_query = "SELECT "+i+" FROM ("+SQL+") M GROUP BY "+ i
                 #JSON 필드 생성    
                 if column_type == 'null':
                     pass
@@ -196,7 +193,7 @@ class Exam(QWidget):
                         "alias": i,
                         "desc":i,
                         "show":True,
-                        "filter_query":"SELECT "+i+" FROM ("+SQL+") M GROUP BY "+ i,
+                        "filter_query": filter_query,
                         "category":column_category,
                         "statistics":column_statistics,
                         "statistics_desc":i,
