@@ -210,7 +210,6 @@ class Exam(QWidget):
             schema_info["fact"]["alias"]= "M"
             schema_info["fact"]["desc"]= Schema
             schema_info["fact"]["fields"]=dict(a)
-            print(schema_info)
 
             result.append(schema_info)
             #txt파일 생성
