@@ -123,24 +123,15 @@ class Exam(QWidget):
             dirName = self.dirName #'찾아보기'로 선택한 경로
             Schema = self.SCHEMA_NAME.text() #입력받은 생성할 스키마 이름
             SQL = self.SQL_QUERY.toPlainText() # 입력받은 SQL QUERY
-
-            if database == 'oracle':
-                LOCATION=str(Path.cwd())+"\instantclient-basic-windows.x64-21.7.0.0.0dbru\instantclient_21_7" #오라클 인스턴트클라이언트 위치 (실행파일과 같은 위치에 있어야 합니다.)
-                os.environ["PATH"] = LOCATION + ";" + os.environ["PATH"]
-                dsn=cx_Oracle.makedsn(host,int(port),dbname)
-                con=cx_Oracle.connect(user,password,dsn,encoding='UTF-8')
-                cursor=con.cursor()
-            elif database == 'mysql' or database == 'mariadb':
-                conn = pymysql.connect(host=host,port=int(port),user=user, password=password,db=dbname,charset='utf8')
-            else :
-                return print('지원하지않는DB입니다')
+            
             result=[]
-            schema_info={"connectionid":"",
-                        "schema_name":"",
-                        "dbms_type":database,
-                        "desc":"",
+            schema_info={"connectionid":"quadmax",
+                        "schema_name":"test",
+                        "dbms_type":"mariadb",
+                        "desc":"테스트",
                         "nogroupby_enabled":True,
                         "transpose_enabled":False,
+                        "remote_segments_import":True,
                         "fact":
                                 { "id":"",
                                 "name":"",
@@ -150,66 +141,133 @@ class Exam(QWidget):
                                 "fields":""
                                 }
                         }
-            #쿼리결과를 DataFrame으로
-            if database == 'mysql' or database == 'mariadb':
-                data=pd.read_sql_query(SQL,conn)
-            elif database == 'oracle':
-                data=pd.read_sql_query(SQL,con)
-            #칼럼의 타입에 따라 필드 타입 결정
+            analytics_name = 'analytics_name'
+            
+            
+            query_word_list=[]
+            for i in query.split(' '):
+                word = i.replace("\n",'')
+                if word != '':
+                    query_word_list.append(word)
+            
+            SELECT_YN = 0
+            FROM_YN = 0
+            WHERE_YN = 0
+            GROUPBY_YN = 0
+            AS_YN = 0
+            DIMENSION_LIST=[]
+            MEASURE_LIST=[]
+            ALIAS_LIST=[]
+            FROM_LIST=[]
+            OPEN = 0
+            CLOSE = 0
+            word=''
+            for j in query_word_list:
+                if j == 'SELECT':
+                    SELECT_YN = 1
+                elif j == 'FROM':
+                    SELECT_YN = 0
+                    FROM_YN = 1
+                elif j == 'GROUP':
+                    GROUPBY_YN = 1
+                if FROM_YN == 1:
+                    if j == '(':
+                        OPEN +=1
+                    elif j ==')':
+                        CLOSE +=1
+                    if OPEN != CLOSE :
+                        FROM_LIST.append(j)
+                    elif OPEN!=0 and OPEN == CLOSE :
+                        FROM_YN = 0
+                        GROUPBY_YN = 0
+                elif SELECT_YN == 1:
+                    if j == 'AS':
+                        AS_YN =1
+                    elif j == ',':
+                        AS_YN = 0
+                    if AS_YN ==0 and j!= ',':
+                        MEASURE_LIST.append(j)
+                    if j == 'SELECT':
+                        pass
+                    else : 
+                        word=word+j
+                elif GROUPBY_YN == 1 and j!= ',':
+                    DIMENSION_LIST.append(j)
+                elif FROM_YN == 0 and GROUPBY_YN ==0:
+                    query_alias=j
+            DIMENSION_LIST.remove('GROUP')
+            DIMENSION_LIST.remove('BY')
+            MEASURE_LIST.remove('SELECT')
+            FROM_LIST.append(')')
+            value_list=word.split(',')
+            result1=[]
+            for i in value_list:
+                result1.append(i.split('AS'))
+
+            fact_name = ''
+            for i in FROM_LIST:
+                fact_name = fact_name+' '+i
+                
+            schema_info["desc"]=analytics_name
+            schema_info["fact"]["id"]=analytics_name
+            schema_info["fact"]["name"]=fact_name
+            schema_info["fact"]["alias"]="M"
+            schema_info["fact"]["desc"]=analytics_name
+            table_list=[]
+            for i in range(0,len(FROM_LIST)):
+                if FROM_LIST[i] == 'FROM' or FROM_LIST[i] == 'JOIN':
+                    table_list.append([FROM_LIST[i+1],FROM_LIST[i+2]])
+            
+            column_table_mapping=[]
+            for j in FROM_LIST:
+                word=j.split('.')
+                if len(word)==2:
+                    for k in range(0,len(table_list)):
+                        if word[0]==table_list[k][1]:
+                            column_table_mapping.append([word[1],table_list[k][0]])
+            column_table_mapping
             a=[]
-            for i in data.columns:
-                if i == 'CUST_ID':
-                    column_type = 'char_only'
-                null=0
-                for j in range(0,len(data)):
-                    if data[i][j] == '' or pd.isnull(data[i][j]):
-                        null=null+1
-                    elif type(data[i][j])==str:
-                        column_type = 'char'
-                    else :
-                        column_type = 'num'
-                if null == len(data):
-                    column_type = 'null'
-                if column_type == 'num':
-                    column_category = '분석지표'
-                    column_statistics=["SUM("+i+")"]
-                    filter_query = "SELECT 1 AS MINVALUE, 10000000 AS MAXVALUE"
-                elif column_type=="char_only":
-                    column_category="고객번호"
-                    column_statistics=["COUNT("+i+")"]
-                    filter_query = "SELECT "+i+" FROM ("+SQL+") M GROUP BY "+ i
+            for i in MEASURE_LIST:
+                column_name = ''
+                column_type = ''
+                column_desc = ''
+                column_category = ''
+                column_filter = ''
+                column_statistics = ''
+                
+                column_name = i.split('.')[-1].replace(')','')
+                if i in DIMENSION_LIST:
+                    column_type='char'
+                    column_category = '분석관점'
+                    column_statistics = "COUNT("+i+")"
                 else:
-                    column_category="분석관점"
-                    column_statistics=["COUNT("+i+")"]
-                    filter_query = "SELECT "+i+" FROM ("+SQL+") M GROUP BY "+ i
-                #JSON 필드 생성    
-                if column_type == 'null':
-                    pass
-                else :
-                    a.append(
-                        (i,
-                        { "name":i,
-                        "type":column_type,
-                        "alias": i,
-                        "desc":i,
-                        "show":True,
-                        "filter_query": filter_query,
-                        "category":column_category,
-                        "statistics":column_statistics,
-                        "statistics_desc":i,
-                        "source":"table"
-                        } 
+                    column_type='num'
+                    column_category = '분석지표'
+                    column_statistics = i
+                    column_filter = "SELECT 1 AS MINVALUE , 1000000000 as MAXVALUE FROM DUAL"
+                for j in result1:
+                    if i==j[0] and  len(j)==2:
+                        column_desc=j[1]
+                for k in column_table_mapping:
+                    if column_name == k[0] and column_filter == '':
+                        column_filter = "SELECT "+k[0]+" FROM "+k[1]+ " GROUP BY "+k[0]
+                a.append((column_name,
+                        { "name":column_name,
+                            "type":column_type,
+                            "alias":column_name,
+                            "desc":column_desc,
+                            "show":True,
+                            "filter_query":column_filter,
+                            "category":column_category,
+                            "statistics":column_statistics,                        
+                            "statistics_desc":column_desc,
+                            "source":"table"
+                            }
                         )
                         )
-                #JSON 구성정보 생성
-            schema_info["connectionid"] = connect_file
-            schema_info["schema_name"] = Schema
-            schema_info["desc"] = Schema
-            schema_info["fact"]["id"] = Schema
-            schema_info["fact"]["name"] = "("+SQL+")"
-            schema_info["fact"]["alias"]= "M"
-            schema_info["fact"]["desc"]= Schema
             schema_info["fact"]["fields"]=dict(a)
+            
+                        
 
             result.append(schema_info)
             #txt파일 생성
