@@ -178,7 +178,7 @@ class Exam(QWidget):
         schema_info["desc"]=analytics_name
         schema_info["fact"]["id"]=analytics_name
         schema_info["fact"]["name"]=fact_name
-        schema_info["fact"]["alias"]="M"
+        schema_info["fact"]["alias"]=query_alias
         schema_info["fact"]["desc"]=analytics_name
         table_list=[]
         for i in range(0,len(FROM_LIST)):
