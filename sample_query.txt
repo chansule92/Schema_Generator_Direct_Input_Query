@@ -1,0 +1,19 @@
+SELECT M.CUST_ID AS 고객번호
+     , M.SEX_CD AS 성별코드
+     , M.AGE_GRP_CD AS 연령대코드
+     , M.CUST_GRD_CD AS 고객등급코드
+     , SUM(M.SALE_AMT) AS 매출금액
+  FROM ( SELECT A.CUST_ID
+              , B.SEX_CD
+              , B.AGE_GRP_CD
+              , B.CUST_GRD_CD
+              , A.SALE_AMT
+           FROM ssbi_crm_mart.sgdw_cust_sale_info A
+                INNER JOIN ssbi_crm_mart.sgdw_cust_mst B
+          WHERE A.SALE_DT BETWEEN '20210101' AND '20210131'
+             ON A.CUST_ID = B.CUST_ID
+       ) M
+ GROUP BY M.CUST_ID
+     , M.SEX_CD 
+     , M.AGE_GRP_CD
+     , M.CUST_GRD_CD
