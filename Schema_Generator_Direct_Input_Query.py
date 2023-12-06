@@ -137,6 +137,7 @@ class Exam(QWidget):
                 FROM_YN = 1
             elif j == 'GROUP':
                 GROUPBY_YN = 1
+                FROM_YN = 0
             if FROM_YN == 1:
                 if j == '(':
                     OPEN +=1
