@@ -93,10 +93,10 @@ class Exam(QWidget):
         query = self.SQL_QUERY.toPlainText() # 입력받은 SQL QUERY
 
         result=[]
-        schema_info={"connectionid":'quadmax',
-                    "schema_name":'Schema',
-                    "dbms_type":'database',
-                    "desc":"테스트",
+        schema_info={"connectionid":connect_file,
+                    "schema_name":Schema,
+                    "dbms_type":database,
+                    "desc":Schema,
                     "nogroupby_enabled":True,
                     "transpose_enabled":False,
                     "remote_segments_import":True,
@@ -151,7 +151,12 @@ class Exam(QWidget):
                 temp=temp[1:]
             dimension_list.update({temp.split('AS')[0]:temp.split('AS')[1]})
 
-        dimension_list
+        group_list=[]
+        for group in GROUP_LIST[2]:
+            temp=(group.replace(' ',''))
+            if temp[0] == ',':
+                temp=temp[1:]
+            group_list.append(temp)
 
         temp_from=''
         for k in FROM_LIST[2]:
@@ -172,7 +177,7 @@ class Exam(QWidget):
         schema_info["desc"]=analytics_name
         schema_info["fact"]["id"]=analytics_name
         schema_info["fact"]["name"]=from_list
-        schema_info["fact"]["alias"]=query_alias
+        schema_info["fact"]["alias"]=from_alias
         schema_info["fact"]["desc"]=analytics_name
 
         column_table_mapping=[]
@@ -183,6 +188,7 @@ class Exam(QWidget):
                     if word[0]==table_list[k][1]:
                         column_table_mapping.append([word[1],table_list[k][0]])
         MEASURE_LIST=list(dimension_list.keys())
+        a=[]
         for i in MEASURE_LIST:
             column_name = ''
             column_type = ''
@@ -190,20 +196,19 @@ class Exam(QWidget):
             column_category = ''
             column_filter = ''
             column_statistics = ''
-            if i in DIMENSION_LIST:
+            if i in group_list:
                 column_type='char'
                 column_category = '분석관점'
                 column_statistics = "COUNT("+i+")"
                 column_name = i.split('.')[-1]
+                column_desc = dimension_list[i]
             else:
                 column_type='num'
                 column_category = '분석지표'
                 column_statistics = i
                 column_filter = "SELECT 1 AS MINVALUE , 1000000000 as MAXVALUE FROM DUAL"
                 column_name = i
-            for j in result1:
-                if i==j[0] and  len(j)==2:
-                    column_desc=j[1]
+                column_desc = dimension_list[i]
             for k in column_table_mapping:
                 if column_name == k[0] and column_filter == '':
                     column_filter = "SELECT "+k[0]+" FROM "+k[1]+ " GROUP BY "+k[0]
