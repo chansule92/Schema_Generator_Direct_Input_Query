@@ -93,9 +93,9 @@ class Exam(QWidget):
         query = self.SQL_QUERY.toPlainText() # 입력받은 SQL QUERY
 
         result=[]
-        schema_info={"connectionid":connect_file,
-                    "schema_name":Schema,
-                    "dbms_type":database,
+        schema_info={"connectionid":'quadmax',
+                    "schema_name":'Schema',
+                    "dbms_type":'database',
                     "desc":"테스트",
                     "nogroupby_enabled":True,
                     "transpose_enabled":False,
@@ -110,91 +110,79 @@ class Exam(QWidget):
                             }
                     }
         analytics_name = 'analytics_name'
+        import sqlparse
 
+        parsed = sqlparse.parse(query)
+        query_result=[]
+        # 파싱된 결과를 출력
+        for statement in parsed:
+            for token in statement.tokens:
+                query_result.append(str(token.value).split('\n'))
 
-        query_word_list=[]
-        for i in query.split(' '):
-            word = i.replace("\n",'')
-            if word != '':
-                query_word_list.append(word)
-
+        SELECT_LIST=[]
+        FROM_LIST=[]
+        GROUP_LIST=[]
         SELECT_YN = 0
         FROM_YN = 0
-        WHERE_YN = 0
-        GROUPBY_YN = 0
-        AS_YN = 0
-        DIMENSION_LIST=[]
-        MEASURE_LIST=[]
-        FROM_LIST=[]
-        OPEN = 0
-        CLOSE = 0
-        word=''
-        for j in query_word_list:
-            if j == 'SELECT':
+        GROUP_YN = 0
+        for i in query_result:
+            if i ==['SELECT']:
                 SELECT_YN = 1
-            elif j == 'FROM':
+                FROM_YN = 0
+                GROUP_YN = 0
+            elif i ==['FROM']:
                 SELECT_YN = 0
                 FROM_YN = 1
-            elif j == 'GROUP':
-                GROUPBY_YN = 1
+                GROUP_YN = 0
+            elif i ==['GROUP BY']:
+                SELECT_YN = 0
                 FROM_YN = 0
-            if FROM_YN == 1:
-                if j == '(':
-                    OPEN +=1
-                elif j ==')':
-                    CLOSE +=1
-                if OPEN != CLOSE :
-                    FROM_LIST.append(j)
-                elif OPEN!=0 and OPEN == CLOSE :
-                    FROM_YN = 0
-                    GROUPBY_YN = 0
-            elif SELECT_YN == 1:
-                if j == 'AS':
-                    AS_YN =1
-                elif j == ',':
-                    AS_YN = 0
-                if AS_YN ==0 and j!= ',':
-                    MEASURE_LIST.append(j)
-                if j == 'SELECT':
-                    pass
-                else : 
-                    word=word+j
-            elif GROUPBY_YN == 1 and j!= ',':
-                DIMENSION_LIST.append(j)
-            elif FROM_YN == 0 and GROUPBY_YN ==0:
-                query_alias=j
-        DIMENSION_LIST.remove('GROUP')
-        DIMENSION_LIST.remove('BY')
-        MEASURE_LIST.remove('SELECT')
-        FROM_LIST.append(')')
-        value_list=word.split(',')
-        result1=[]
-        for i in value_list:
-            result1.append(i.split('AS'))
+                GROUP_YN = 1
+            if SELECT_YN == 1:
+                SELECT_LIST.append(i)
+            elif FROM_YN == 1:
+                FROM_LIST.append(i)
+            elif GROUP_YN == 1:
+                GROUP_LIST.append(i)
+        dimension_list={}
+        for select in SELECT_LIST[2]:
+            temp=(select.replace(' ',''))
+            if temp[0] == ',':
+                temp=temp[1:]
+            dimension_list.update({temp.split('AS')[0]:temp.split('AS')[1]})
 
-        fact_name = ''
-        for i in FROM_LIST:
-            fact_name = fact_name+' '+i
+        dimension_list
+
+        temp_from=''
+        for k in FROM_LIST[2]:
+            temp_from=temp_from + k
+        from_list=temp_from[:-1]
+        from_alias=temp_from[-1:]
+        from_list
+        for i in range(0,10):
+            from_list=from_list.replace('  ',' ')
+        abc=from_list.split(' ')
+        if 'FROM' in abc:
+            print()
+        table_list=[]
+        for i in range(0,len(abc)):
+            if abc[i] == 'FROM' or abc[i] == 'JOIN':
+                table_list.append([abc[i+1],abc[i+2]])
 
         schema_info["desc"]=analytics_name
         schema_info["fact"]["id"]=analytics_name
-        schema_info["fact"]["name"]=fact_name
+        schema_info["fact"]["name"]=from_list
         schema_info["fact"]["alias"]=query_alias
         schema_info["fact"]["desc"]=analytics_name
-        table_list=[]
-        for i in range(0,len(FROM_LIST)):
-            if FROM_LIST[i] == 'FROM' or FROM_LIST[i] == 'JOIN':
-                table_list.append([FROM_LIST[i+1],FROM_LIST[i+2]])
 
         column_table_mapping=[]
-        for j in FROM_LIST:
+        for j in from_list.split(' '):
             word=j.split('.')
             if len(word)==2:
                 for k in range(0,len(table_list)):
                     if word[0]==table_list[k][1]:
                         column_table_mapping.append([word[1],table_list[k][0]])
-        column_table_mapping
-        a=[]
+        MEASURE_LIST=list(dimension_list.keys())
         for i in MEASURE_LIST:
             column_name = ''
             column_type = ''
@@ -202,7 +190,6 @@ class Exam(QWidget):
             column_category = ''
             column_filter = ''
             column_statistics = ''
-
             if i in DIMENSION_LIST:
                 column_type='char'
                 column_category = '분석관점'
@@ -223,21 +210,18 @@ class Exam(QWidget):
             a.append((column_name,
                     { "name":column_name,
                         "type":column_type,
-                        "alias":column_desc,
+                        "alias":column_name,
                         "desc":column_desc,
                         "show":True,
                         "filter_query":column_filter,
                         "category":column_category,
-                        "statistics":[column_statistics],                        
-                        "statistics_desc":[column_desc],
+                        "statistics":column_statistics,                        
+                        "statistics_desc":column_desc,
                         "source":"table"
                         }
                     )
                     )
         schema_info["fact"]["fields"]=dict(a)
-
-
-
         result.append(schema_info)
         #txt파일 생성
         with open(dirName + """\\{}.txt""".format(Schema),'w',encoding="UTF-8") as outfile:
