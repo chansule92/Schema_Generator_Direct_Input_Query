@@ -220,8 +220,8 @@ class Exam(QWidget):
                         "show":True,
                         "filter_query":column_filter,
                         "category":column_category,
-                        "statistics":column_statistics,                        
-                        "statistics_desc":column_desc,
+                        "statistics":[column_statistics],                        
+                        "statistics_desc":[column_desc],
                         "source":"table"
                         }
                     )
