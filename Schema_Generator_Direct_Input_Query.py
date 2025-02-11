@@ -215,7 +215,7 @@ class Exam(QWidget):
             a.append((column_name,
                     { "name":column_name,
                         "type":column_type,
-                        "alias":column_name,
+                        "alias":column_desc,
                         "desc":column_desc,
                         "show":True,
                         "filter_query":column_filter,
