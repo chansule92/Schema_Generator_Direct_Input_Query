@@ -25,7 +25,7 @@ class Exam(QWidget):
         self.result = QLabel("Default")
         self.oracle = QRadioButton("oracle")
         self.mysql = QRadioButton("mysql")
-        self.mariadb = QRadioButton("mariadb")
+        self.redshift = QRadioButton("redshift")
         self.CONN_FILE = QLineEdit()
         self.SCHEMA_NAME = QLineEdit()
         self.SQL_QUERY = QTextEdit()
@@ -35,7 +35,7 @@ class Exam(QWidget):
         typehbox = QHBoxLayout()
         typehbox.addWidget(self.oracle,0)
         typehbox.addWidget(self.mysql,1)
-        typehbox.addWidget(self.mariadb,2)
+        typehbox.addWidget(self.redshift,2)
         grid.addLayout(typehbox,0,1)
         grid.addWidget(self.CONN_FILE,1,1)
         grid.addWidget(self.SCHEMA_NAME,2,1)
@@ -45,7 +45,7 @@ class Exam(QWidget):
         #DB선택 라디오버튼
         self.oracle.toggled.connect(self.DBTYPE)
         self.mysql.toggled.connect(self.DBTYPE)
-        self.mariadb.toggled.connect(self.DBTYPE)
+        self.redshift.toggled.connect(self.DBTYPE)
         #생성,취소버튼
         CreateButton = QPushButton("생성")
         CancleButton = QPushButton("취소")
